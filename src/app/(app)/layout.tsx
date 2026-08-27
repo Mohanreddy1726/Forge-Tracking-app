@@ -99,9 +99,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             href="/dashboard"
             className="flex items-center justify-center gap-2.5 px-2 py-2 group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0"
           >
-            <span className="ember-bg grid size-10 shrink-0 place-items-center rounded-xl text-base font-bold text-primary-foreground group-data-[collapsible=icon]:size-10">
-              F
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://ik.imagekit.io/petdz32jy/forge-progress/image_2026-08-27_150101975.png"
+              alt="Forge"
+              className="size-10 shrink-0 rounded-xl object-contain group-data-[collapsible=icon]:size-10"
+            />
             <div className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
               <span className="truncate text-base font-semibold tracking-tight">Forge</span>
               <span className="truncate text-[11px] text-sidebar-foreground/70">
@@ -163,9 +166,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur md:hidden">
           <SidebarTrigger />
           <div className="flex items-center gap-2">
-            <span className="ember-bg grid size-8 place-items-center rounded-lg text-sm font-bold text-primary-foreground">
-              F
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://ik.imagekit.io/petdz32jy/forge-progress/image_2026-08-27_150101975.png"
+              alt="Forge"
+              className="size-8 rounded-lg object-contain"
+            />
             <span className="text-sm font-semibold tracking-tight">Forge</span>
           </div>
         </header>
