@@ -225,7 +225,11 @@ export function useSaveDailyLog() {
   return useMutation({
     mutationFn: async (values: Partial<DailyLog> & { log_date: string }) =>
       post("/api/daily-logs", values),
-    onSuccess: () => void qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["daily_logs"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+      qc.invalidateQueries({ queryKey: ["habit_logs"] });
+    },
   });
 }
 
@@ -234,7 +238,14 @@ export function useToggleHabit() {
   return useMutation({
     mutationFn: async (v: { log_date: string; habit_key: string; completed: boolean }) =>
       post("/api/habit-logs", v),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["habit_logs"] }),
+    onSuccess: () => {
+      // The dashboard's score / streak / todayHabits all derive from
+      // habit_logs + daily_logs + profile through buildDayStats — invalidate
+      // everything that could depend on this row so derived views refresh.
+      qc.invalidateQueries({ queryKey: ["habit_logs"] });
+      qc.invalidateQueries({ queryKey: ["daily_logs"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
   });
 }
 
@@ -298,7 +309,11 @@ export function useSaveMeasurement() {
   return useMutation({
     mutationFn: async (values: Partial<Measurement> & { log_date: string }) =>
       post("/api/measurements", values),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["measurements"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["measurements"] });
+      qc.invalidateQueries({ queryKey: ["daily_logs"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
   });
 }
 
@@ -307,7 +322,11 @@ export function useSaveJournal() {
   return useMutation({
     mutationFn: async (values: Partial<JournalEntry> & { log_date: string }) =>
       post("/api/journal", values),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["journal"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["journal"] });
+      qc.invalidateQueries({ queryKey: ["daily_logs"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
   });
 }
 

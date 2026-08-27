@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowRight, Flame } from "lucide-react";
 import { Panel } from "@/components/panel";
@@ -22,6 +23,7 @@ export default function Onboarding() {
   const { data: profile } = useProfile();
   const start = useStartChallenge();
   const update = useUpdateProfile();
+  const qc = useQueryClient();
   const router = useRouter();
 
   const [form, setForm] = useState({
@@ -96,9 +98,19 @@ export default function Onboarding() {
               goal_weight: Number(form.goal_weight),
             },
             {
-              onSuccess: () => {
+              onSuccess: async () => {
+                // The /api/challenges/start server route flips
+                // onboarding_completed to true on the Profile row, but the
+                // cached profile in the React Query client is still the
+                // pre-onboarding snapshot. The dashboard's redirect-effect
+                // would see onboarding_completed=false and bounce the user
+                // straight back here. Wait for profile + everything else
+                // to refetch before navigating.
+                await qc.refetchQueries({ queryKey: ["profile"] });
+                await qc.refetchQueries({ queryKey: ["challenges"] });
                 toast.success("Challenge started. Day 1 begins now.");
                 router.replace("/dashboard");
+                router.refresh();
               },
               onError: (err) => toast.error(err.message),
             },
