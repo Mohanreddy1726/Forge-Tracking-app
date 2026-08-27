@@ -29,8 +29,10 @@ export default function ReportsPage() {
     weights.length > 1
       ? Math.round((Number(weights[weights.length - 1]!.weight) - Number(weights[0]!.weight)) * 10) / 10
       : 0;
-  const sessions = new Set(workouts.filter((w) => w.log_date >= from).map((w) => w.log_date)).size;
-  const meals = nutrition.filter((n) => n.log_date >= from);
+  const sessions = new Set(
+    workouts.filter((w) => (w.log_date ?? "") >= from).map((w) => w.log_date ?? ""),
+  ).size;
+  const meals = nutrition.filter((n) => (n.log_date ?? "") >= from);
   const avgCalories = meals.length
     ? Math.round(
         meals.reduce((a, b) => a + Number(b.calories), 0) / new Set(meals.map((m) => m.log_date)).size,

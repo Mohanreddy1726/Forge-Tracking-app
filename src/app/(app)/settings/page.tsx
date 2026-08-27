@@ -89,8 +89,8 @@ export default function SettingsPage() {
     if (!profile) return;
     const next: Record<string, string> = {
       display_name: profile.display_name ?? "",
-      gender: profile.gender,
-      start_date: profile.start_date,
+      gender: profile.gender ?? "male",
+      start_date: profile.start_date ?? "",
     };
     for (const n of NUMERIC) next[n.key] = String(profile[n.key] ?? "");
     setForm(next);

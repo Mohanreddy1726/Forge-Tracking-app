@@ -56,7 +56,12 @@ export default function FastingPage() {
   const [now, setNow] = useState(() => Date.now());
   const [success, setSuccess] = useState<string | null>(null);
 
-  const active = rows.find((r) => !r.ended_at);
+  const activeRaw = rows.find((r) => !r.ended_at);
+  // The schema marks started_at as optional, but a row with !ended_at was
+  // started — narrow once so the rest of the file can use it as a string.
+  const active = activeRaw?.started_at
+    ? { ...activeRaw, started_at: activeRaw.started_at as string }
+    : undefined;
 
   useEffect(() => {
     if (!active) return;
@@ -74,9 +79,16 @@ export default function FastingPage() {
   const pct =
     targetMs > 0 ? Math.min(100, Math.round((elapsedMs / targetMs) * 100)) : 0;
 
-  const completed = useMemo(() => rows.filter((r) => r.ended_at), [rows]);
+  const completed = useMemo(
+    () =>
+      rows.filter(
+        (r): r is typeof r & { started_at: string; ended_at: string } =>
+          !!r.ended_at && !!r.started_at,
+      ),
+    [rows],
+  );
   const stats = useMemo(() => {
-    const durations = completed.map((r) => hoursBetween(r.started_at, r.ended_at!));
+    const durations = completed.map((r) => hoursBetween(r.started_at, r.ended_at));
     const hit = completed.filter((r, i) => durations[i]! >= Number(r.target_hours)).length;
     const totalHours = durations.reduce((a, b) => a + b, 0);
     return {
@@ -281,7 +293,9 @@ export default function FastingPage() {
           <div className="space-y-2">
             {rows.map((r) => {
               const done = !!r.ended_at;
-              const hrs = done ? hoursBetween(r.started_at, r.ended_at!) : elapsedMs / 3600000;
+              const hrs = done && r.started_at
+                ? hoursBetween(r.started_at, r.ended_at as string)
+                : elapsedMs / 3600000;
               const hitTarget = hrs >= Number(r.target_hours);
               return (
                 <div
@@ -309,7 +323,7 @@ export default function FastingPage() {
                       </span>
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {new Date(r.started_at).toLocaleString()}
+                      {r.started_at ? new Date(r.started_at).toLocaleString() : "—"}
                       {r.ended_at ? ` → ${new Date(r.ended_at).toLocaleString()}` : ""}
                       {r.notes ? ` · ${r.notes}` : ""}
                     </p>

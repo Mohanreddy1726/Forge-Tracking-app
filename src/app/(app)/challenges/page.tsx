@@ -10,8 +10,8 @@ import {
   useFinishChallenge,
   useStartChallenge,
   useUpdateChallenge,
-  type Challenge,
 } from "@/lib/data";
+import type { Challenge } from "@/lib/types";
 import { useIron } from "@/lib/use-iron";
 import { addDays, daysBetween, todayStr } from "@/lib/iron";
 import { celebrate } from "@/lib/celebrate";

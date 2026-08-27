@@ -373,9 +373,9 @@ export default function NutritionPage() {
                   className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3"
                 >
                   <div>
-                    <p className="text-sm font-medium">{r.item}</p>
+                    <p className="text-sm font-medium">{String(r.item ?? "")}</p>
                     <p className="text-xs text-muted-foreground">
-                      {MEAL_LABELS[r.meal] ?? r.meal} · {r.calories} kcal · {r.protein}g protein · {r.carbs}g carbs · {r.fat}g fat
+                      {MEAL_LABELS[r.meal as keyof typeof MEAL_LABELS] ?? r.meal} · {Number(r.calories)} kcal · {Number(r.protein)}g protein · {Number(r.carbs)}g carbs · {Number(r.fat)}g fat
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
