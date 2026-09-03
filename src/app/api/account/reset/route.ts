@@ -14,8 +14,9 @@ import {
   NutritionLog,
   PhotoRow,
   WorkoutLog,
+  Profile,
 } from "@/server/models";
-import { destroySession, getUserId } from "@/server/session";
+import { getUserId } from "@/server/session";
 
 /*
  * POST /api/account/reset — wipes every log row tied to the signed-in user,
@@ -49,7 +50,16 @@ export async function POST() {
       PhotoRow.deleteMany(filter),
       AchievementRow.deleteMany(filter),
     ]);
-    await destroySession();
+    // Keep the session; clear onboarding state on profile
+await Profile.findOneAndUpdate(
+  { userId },
+  { $set: { onboarding_completed: false, active_challenge_id: null },
+    $unset: { start_date: "", program_days: "", start_weight: "", goal_weight: "" },
+  },
+  { new: true }
+);
+// Note: destroySession() removed to retain login after reset.
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(
