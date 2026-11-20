@@ -17,6 +17,7 @@ import {
   ImageIcon,
   LayoutDashboard,
   LogOut,
+  Menu,
   PenLine,
   Ruler,
   Scale,
@@ -44,6 +45,9 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { post } from "@/lib/api";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { QuickLogModal } from "@/components/quick-log-modal";
+import { hapticTap } from "@/lib/haptic";
 
 /*
  * App shell — wraps every authenticated route under the (app) route group.
@@ -94,7 +98,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
-        <SidebarHeader className="pb-6">
+        <SidebarHeader className="pb-6 flex items-center justify-between">
           <Link
             href="/dashboard"
             className="flex items-center justify-center gap-2.5 px-2 py-2 group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0"
@@ -112,6 +116,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </span>
             </div>
           </Link>
+          <ThemeToggle />
         </SidebarHeader>
 
         <SidebarContent>
@@ -175,11 +180,58 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <span className="text-sm font-semibold tracking-tight">Forge</span>
           </div>
         </header>
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="min-w-0 flex-1 px-4 pt-6 pb-24 sm:px-6 lg:px-8 md:pb-6">
           <div className="mx-auto w-full max-w-screen-2xl">{children}</div>
         </main>
+        <QuickLogModal />
+        <MobileBottomNav />
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+function MobileBottomNav() {
+  const pathname = usePathname();
+  const { toggleSidebar } = useSidebar();
+
+  const items = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/checkin", label: "Today", icon: CalendarDays },
+    { href: "/habits", label: "Habits", icon: Flame },
+    { href: "/workouts", label: "Workouts", icon: Dumbbell },
+  ];
+
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-center justify-around border-t border-border bg-background/95 px-2 backdrop-blur md:hidden">
+      {items.map((item) => {
+        const active = pathname === item.href || (item.href !== "/" && pathname?.startsWith(`${item.href}/`));
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={() => hapticTap(10)}
+            className={`flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-1.5 transition-colors ${
+              active ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className={`size-5 ${active ? "text-primary" : ""}`} />
+            <span className="text-[10px] tracking-tight">{item.label}</span>
+          </Link>
+        );
+      })}
+      <button
+        type="button"
+        onClick={() => {
+          hapticTap(10);
+          toggleSidebar();
+        }}
+        className="flex flex-col items-center justify-center gap-1 rounded-xl px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <Menu className="size-5" />
+        <span className="text-[10px] tracking-tight">Menu</span>
+      </button>
+    </nav>
   );
 }
 

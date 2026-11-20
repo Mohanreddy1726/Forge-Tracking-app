@@ -238,10 +238,38 @@ export function useToggleHabit() {
   return useMutation({
     mutationFn: async (v: { log_date: string; habit_key: string; completed: boolean }) =>
       post("/api/habit-logs", v),
-    onSuccess: () => {
-      // The dashboard's score / streak / todayHabits all derive from
-      // habit_logs + daily_logs + profile through buildDayStats — invalidate
-      // everything that could depend on this row so derived views refresh.
+    onMutate: async (newHabit) => {
+      await qc.cancelQueries({ queryKey: ["habit_logs"] });
+      const previousLogs = qc.getQueryData<HabitLog[]>(["habit_logs"]) ?? [];
+
+      qc.setQueryData<HabitLog[]>(["habit_logs"], (old = []) => {
+        const idx = old.findIndex(
+          (h) => h.log_date === newHabit.log_date && h.habit_key === newHabit.habit_key,
+        );
+        if (idx >= 0) {
+          const next = [...old];
+          next[idx] = { ...next[idx]!, completed: newHabit.completed };
+          return next;
+        }
+        return [
+          ...old,
+          {
+            id: `temp-${Date.now()}`,
+            log_date: newHabit.log_date,
+            habit_key: newHabit.habit_key,
+            completed: newHabit.completed,
+          },
+        ];
+      });
+
+      return { previousLogs };
+    },
+    onError: (_err, _newHabit, context) => {
+      if (context?.previousLogs) {
+        qc.setQueryData(["habit_logs"], context.previousLogs);
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["habit_logs"] });
       qc.invalidateQueries({ queryKey: ["daily_logs"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
@@ -386,22 +414,41 @@ export function buildDayStats(
 }
 
 export function streaks(stats: DayStat[], threshold = 60) {
-  let current = 0;
   let longest = 0;
   let run = 0;
+  let totalStrongDays = 0;
+
   for (const s of stats) {
     if (s.score >= threshold) {
       run++;
+      totalStrongDays++;
       longest = Math.max(longest, run);
     } else {
       run = 0;
     }
   }
+
+  const totalShieldsEarned = Math.floor(totalStrongDays / 14);
+  let shieldsAvailable = Math.min(2, totalShieldsEarned);
+
+  let current = 0;
   for (let i = stats.length - 1; i >= 0; i--) {
-    if (stats[i]!.score >= threshold) current++;
-    else break;
+    if (stats[i]!.score >= threshold) {
+      current++;
+    } else if (shieldsAvailable > 0 && current > 0) {
+      shieldsAvailable--;
+      current++;
+    } else {
+      break;
+    }
   }
-  return { current, longest };
+
+  return {
+    current,
+    longest,
+    shieldsTotal: totalShieldsEarned,
+    shieldsAvailable: Math.min(2, totalShieldsEarned),
+  };
 }
 
 export function useFastingLogs() {

@@ -27,6 +27,7 @@ import {
   type HabitDef,
 } from "@/lib/iron";
 import { celebrate } from "@/lib/celebrate";
+import { hapticTap } from "@/lib/haptic";
 
 /*
  * Habit tracker — full habit list grouped by category, custom habit CRUD,
@@ -128,6 +129,7 @@ export default function Habits(): React.JSX.Element {
   }, [iron.stats, iron.avgScore, score]);
 
   function flip(key: string, done: boolean) {
+    hapticTap(15);
     toggle.mutate(
       { log_date: date, habit_key: key, completed: !done },
       {

@@ -192,3 +192,24 @@ export const ACHIEVEMENTS: {
   { key: "water_30", title: "Hydrated", description: "Hit your water goal 30 times", icon: "Droplets", tier: "bronze" },
   { key: "perfect_day", title: "Perfect Day", description: "Scored 100 in a single day", icon: "Star", tier: "silver" },
 ];
+
+export type ForgeLevel = {
+  level: number;
+  title: string;
+  minScore: number;
+  maxScore: number;
+};
+
+export const FORGE_LEVELS: ForgeLevel[] = [
+  { level: 1, title: "Spark", minScore: 0, maxScore: 500 },
+  { level: 2, title: "Anvil", minScore: 500, maxScore: 1500 },
+  { level: 3, title: "Iron", minScore: 1500, maxScore: 3500 },
+  { level: 4, title: "Tempered", minScore: 3500, maxScore: 7000 },
+  { level: 5, title: "Obsidian", minScore: 7000, maxScore: 12000 },
+  { level: 6, title: "Forge Master", minScore: 12000, maxScore: Infinity },
+];
+
+export function getForgeLevel(totalScore: number): ForgeLevel {
+  const lvl = FORGE_LEVELS.slice().reverse().find((l) => totalScore >= l.minScore);
+  return lvl ?? FORGE_LEVELS[0]!;
+}

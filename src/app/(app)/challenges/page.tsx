@@ -26,7 +26,7 @@ const PRESETS = [30, 60, 75, 90, 180, 365];
 const inputCls =
   "w-full rounded-xl border border-input bg-background/60 px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary";
 
-export function challengeProgress(c: Challenge) {
+function challengeProgress(c: Challenge) {
   const elapsed = Math.min(c.days, Math.max(0, daysBetween(c.start_date, c.ended_at ?? todayStr()) + 1));
   return { elapsed, pct: Math.round((elapsed / c.days) * 100), endDate: addDays(c.start_date, c.days - 1) };
 }

@@ -101,21 +101,25 @@ const NutritionLogSchema = def(
   { userId: { type: Schema.Types.ObjectId, ref: "User" }, log_date: String },
   { strict: false },
 );
+NutritionLogSchema.index({ userId: 1, log_date: 1 });
 
 const WorkoutLogSchema = def(
   { userId: { type: Schema.Types.ObjectId, ref: "User" }, log_date: String },
   { strict: false },
 );
+WorkoutLogSchema.index({ userId: 1, log_date: -1 });
 
 const CardioLogSchema = def(
   { userId: { type: Schema.Types.ObjectId, ref: "User" }, log_date: String },
   { strict: false },
 );
+CardioLogSchema.index({ userId: 1, log_date: -1 });
 
 const ActivityLogSchema = def(
   { userId: { type: Schema.Types.ObjectId, ref: "User" }, log_date: String },
   { strict: false },
 );
+ActivityLogSchema.index({ userId: 1, log_date: -1 });
 
 const FastingLogSchema = def(
   {
@@ -128,6 +132,7 @@ const FastingLogSchema = def(
   },
   { strict: false },
 );
+FastingLogSchema.index({ userId: 1, started_at: -1 });
 
 const MeasurementSchema = def({
   userId: { type: Schema.Types.ObjectId, required: true, ref: "User" },

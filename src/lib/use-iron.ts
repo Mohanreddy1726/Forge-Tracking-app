@@ -9,7 +9,7 @@ import {
   useProfile,
   type DayStat,
 } from "@/lib/data";
-import { PROGRAM_DAYS, addDays, bmi, daysBetween, todayStr } from "@/lib/iron";
+import { PROGRAM_DAYS, addDays, bmi, daysBetween, getForgeLevel, todayStr } from "@/lib/iron";
 
 export function useIron() {
   const profileQ = useProfile();
@@ -56,9 +56,11 @@ export function useIron() {
         ? addDays(today, Math.round(weeksToGoal * 7))
         : null;
 
-    const { current: currentStreak, longest: longestStreak } = streaks(stats);
+    const { current: currentStreak, longest: longestStreak, shieldsAvailable, shieldsTotal } = streaks(stats);
+    const totalScore = stats.reduce((s, d) => s + d.score, 0);
+    const forgeLevel = getForgeLevel(totalScore);
     const avgScore = stats.length
-      ? Math.round(stats.reduce((s, d) => s + d.score, 0) / stats.length)
+      ? Math.round(totalScore / stats.length)
       : 0;
     const todayStat = stats.find((s) => s.date === today);
 
@@ -89,6 +91,10 @@ export function useIron() {
       bmi: bmi(currentWeight, Number(profile?.height_cm ?? 0)),
       currentStreak,
       longestStreak,
+      shieldsAvailable,
+      shieldsTotal,
+      forgeLevel,
+      totalScore,
       avgScore,
       todayScore: todayStat?.score ?? 0,
       todayHabits: todayStat?.habits ?? [],

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -24,16 +23,21 @@ import {
   Flame,
   Quote,
   Scale,
+  Share2,
+  Shield,
+  Sparkles,
   Target,
   TrendingDown,
   Trophy,
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { hapticTap } from "@/lib/haptic";
 import { PageHeader, Panel } from "@/components/panel";
 import { StatCard } from "@/components/stat-card";
 import { RingProgress } from "@/components/ring-progress";
 import { Heatmap } from "@/components/heatmap";
+import { MilestoneCardModal } from "@/components/milestone-card-modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChallenges, useToggleHabit } from "@/lib/data";
 import { useIron } from "@/lib/use-iron";
@@ -59,6 +63,7 @@ export default function Dashboard() {
   const toggle = useToggleHabit();
   const router = useRouter();
   const today = todayStr();
+  const [milestoneOpen, setMilestoneOpen] = useState(false);
 
   // Bounce unboarded users to /onboarding. Guarded by a profile-loaded check
   // so we never redirect signed-in users on a slow network.
@@ -89,6 +94,30 @@ export default function Dashboard() {
     [iron.stats],
   );
 
+  const weeklyRetrospective = useMemo(() => {
+    if (iron.stats.length < 2) return null;
+    const last7 = iron.stats.slice(-7);
+    if (!last7.length) return null;
+
+    const avg = Math.round(last7.reduce((a, b) => a + b.score, 0) / last7.length);
+    const sorted = [...last7].sort((a, b) => b.score - a.score);
+    const best = sorted[0]!;
+    const lowest = sorted[sorted.length - 1]!;
+
+    const workoutsHit = last7.filter((s) => s.habits.includes("workout")).length;
+    const waterHit = last7.filter((s) => s.habits.includes("water")).length;
+
+    return {
+      avgScore: avg,
+      bestDate: formatDateLabel(best.date),
+      bestScore: best.score,
+      lowestDate: formatDateLabel(lowest.date),
+      lowestScore: lowest.score,
+      workoutsHit,
+      waterHit,
+    };
+  }, [iron.stats]);
+
   if (iron.isLoading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -113,14 +142,36 @@ export default function Dashboard() {
             : `${iron.daysRemaining} days remaining · ends ${iron.endDate}`
         }
         action={
-          <Link
-            href="/checkin"
-            className="ember-bg rounded-xl px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.03]"
-          >
-            Daily check-in
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-1 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-bold text-primary">
+              <Sparkles className="size-3.5" /> Lvl {iron.forgeLevel.level}: {iron.forgeLevel.title}
+            </span>
+            <span
+              className="flex items-center gap-1 rounded-xl border border-accent/40 bg-accent/10 px-2.5 py-2 text-xs font-semibold text-accent"
+              title={`${iron.shieldsAvailable} shields available (protects streaks)`}
+            >
+              <Shield className="size-3.5" /> {iron.shieldsAvailable}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                hapticTap(15);
+                setMilestoneOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium hover:border-primary/50 hover:text-primary"
+            >
+              <Share2 className="size-3.5" /> Share card
+            </button>
+            <Link
+              href="/checkin"
+              className="ember-bg rounded-xl px-4 py-2 text-xs font-semibold text-primary-foreground transition-transform hover:scale-[1.03] sm:text-sm"
+            >
+              Daily check-in
+            </Link>
+          </div>
         }
       />
+      <MilestoneCardModal open={milestoneOpen} onOpenChange={setMilestoneOpen} />
 
       {!activeChallenge ? (
         <Panel
@@ -391,6 +442,44 @@ export default function Dashboard() {
         </Panel>
       </div>
 
+      {weeklyRetrospective && (
+        <Panel
+          title="Weekly Retrospective"
+          description={`Last 7 days performance · Average consistency ${weeklyRetrospective.avgScore}%`}
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-success/30 bg-success/10 p-3.5">
+              <span className="text-xs text-muted-foreground">Strongest Day</span>
+              <p className="mt-1 font-mono text-xl font-bold text-success">
+                {weeklyRetrospective.bestDate} ({weeklyRetrospective.bestScore}%)
+              </p>
+              <span className="text-[11px] text-muted-foreground">Peak execution</span>
+            </div>
+            <div className="rounded-xl border border-border bg-muted/20 p-3.5">
+              <span className="text-xs text-muted-foreground">Toughest Day</span>
+              <p className="mt-1 font-mono text-xl font-bold text-muted-foreground">
+                {weeklyRetrospective.lowestDate} ({weeklyRetrospective.lowestScore}%)
+              </p>
+              <span className="text-[11px] text-muted-foreground">Room for discipline</span>
+            </div>
+            <div className="rounded-xl border border-primary/30 bg-primary/10 p-3.5">
+              <span className="text-xs text-primary font-semibold">Workouts Logged</span>
+              <p className="mt-1 font-mono text-xl font-bold text-primary">
+                {weeklyRetrospective.workoutsHit} / 7 days
+              </p>
+              <span className="text-[11px] text-primary/80">Physical progression</span>
+            </div>
+            <div className="rounded-xl border border-accent/30 bg-accent/10 p-3.5">
+              <span className="text-xs text-accent font-semibold">Hydration Hit</span>
+              <p className="mt-1 font-mono text-xl font-bold text-accent">
+                {weeklyRetrospective.waterHit} / 7 days
+              </p>
+              <span className="text-[11px] text-accent/80">Recovery & focus</span>
+            </div>
+          </div>
+        </Panel>
+      )}
+
       <Panel
         title="180-day heatmap"
         description="Every day colored by completion score"
@@ -413,7 +502,8 @@ export default function Dashboard() {
             return (
               <button
                 key={h.key}
-                onClick={() =>
+                onClick={() => {
+                  hapticTap(15);
                   toggle.mutate(
                     { log_date: today, habit_key: h.key, completed: !done },
                     {
@@ -423,8 +513,8 @@ export default function Dashboard() {
                         ),
                       onError: (e) => toast.error(e.message),
                     },
-                  )
-                }
+                  );
+                }}
                 className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-all ${
                   done
                     ? "border-success/40 bg-success/10 text-foreground"

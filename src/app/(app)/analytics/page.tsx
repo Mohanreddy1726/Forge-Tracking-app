@@ -22,12 +22,52 @@ import {
 import { PageHeader, Panel } from "@/components/panel";
 import { StatCard } from "@/components/stat-card";
 import { useIron } from "@/lib/use-iron";
+import { useNutritionLogs } from "@/lib/data";
 import { HABITS, HABIT_CATEGORIES, MOODS, formatDateLabel } from "@/lib/iron";
+import { Flame, Sparkles, Target, Zap } from "lucide-react";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function AnalyticsPage() {
   const iron = useIron();
+  const { data: nutritionLogs = [] } = useNutritionLogs();
+
+  const adaptiveTdee = useMemo(() => {
+    const weights = iron.stats.filter((s) => s.weight != null);
+    if (weights.length < 2) return null;
+
+    const first = weights[0]!;
+    const latest = weights[weights.length - 1]!;
+    const deltaDays = Math.max(1, (new Date(latest.date).getTime() - new Date(first.date).getTime()) / 86400000);
+    const deltaWeightKg = Number(latest.weight) - Number(first.weight);
+
+    const mealsInWindow = nutritionLogs.filter(
+      (n) => Boolean(n.log_date && n.log_date >= first.date && n.log_date <= latest.date),
+    );
+    const uniqueDays = new Set(mealsInWindow.map((m) => m.log_date ?? "")).size || 1;
+    const totalCalories = mealsInWindow.reduce((a, b) => a + Number(b.calories || 0), 0);
+    const avgIntake = Math.round(totalCalories / uniqueDays);
+
+    if (!avgIntake) return null;
+
+    // 7700 kcal per 1kg body fat
+    const dailySurplusOrDeficit = (deltaWeightKg * 7700) / deltaDays;
+    const tdee = Math.round(avgIntake - dailySurplusOrDeficit);
+
+    const remainingKg = Number(iron.remainingToGoal);
+    const daysLeft = Math.max(1, iron.daysRemaining);
+    const neededDailyDeficit = (remainingKg * 7700) / daysLeft;
+    const suggestedDailyCal = Math.max(1200, Math.round(tdee - neededDailyDeficit));
+
+    return {
+      tdee,
+      avgIntake,
+      deltaWeightKg: Math.round(deltaWeightKg * 10) / 10,
+      deltaDays: Math.round(deltaDays),
+      suggestedDailyCal,
+      deficit: Math.round(tdee - avgIntake),
+    };
+  }, [iron.stats, iron.remainingToGoal, iron.daysRemaining, nutritionLogs]);
 
   const habitRates = useMemo(() => {
     const days = iron.stats.length || 1;
@@ -93,6 +133,46 @@ export default function AnalyticsPage() {
         <StatCard label="All-time" value={iron.allTime} suffix="%" accent="success" />
         <StatCard label="Longest streak" value={iron.longestStreak} suffix=" days" accent="warning" />
       </div>
+
+      {adaptiveTdee && (
+        <Panel
+          title="Adaptive TDEE & Energy Metabolism"
+          description={`Calculated dynamically from real weigh-ins (${adaptiveTdee.deltaWeightKg > 0 ? `+${adaptiveTdee.deltaWeightKg}` : `${adaptiveTdee.deltaWeightKg}`} kg over ${adaptiveTdee.deltaDays}d) and nutrition logs.`}
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <span className="text-xs text-muted-foreground">True Maintenance (TDEE)</span>
+              <p className="mt-1 font-mono text-2xl font-bold text-foreground">
+                {adaptiveTdee.tdee.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">kcal/day</span>
+              </p>
+              <span className="text-[11px] text-muted-foreground">Real measured expenditure</span>
+            </div>
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <span className="text-xs text-muted-foreground">Average Daily Intake</span>
+              <p className="mt-1 font-mono text-2xl font-bold text-accent">
+                {adaptiveTdee.avgIntake.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">kcal/day</span>
+              </p>
+              <span className="text-[11px] text-muted-foreground">
+                {adaptiveTdee.deficit >= 0 ? `${adaptiveTdee.deficit} kcal deficit` : `${Math.abs(adaptiveTdee.deficit)} kcal surplus`}
+              </span>
+            </div>
+            <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
+              <span className="text-xs font-semibold text-primary">Suggested Target for Goal</span>
+              <p className="mt-1 font-mono text-2xl font-bold text-primary">
+                {adaptiveTdee.suggestedDailyCal.toLocaleString()} <span className="text-xs font-normal text-primary/80">kcal/day</span>
+              </p>
+              <span className="text-[11px] text-primary/80">To hit goal weight on schedule</span>
+            </div>
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <span className="text-xs text-muted-foreground">Rate of Change</span>
+              <p className="mt-1 font-mono text-2xl font-bold text-success">
+                {adaptiveTdee.deltaWeightKg > 0 ? `+${adaptiveTdee.deltaWeightKg}` : `${adaptiveTdee.deltaWeightKg}`} kg
+              </p>
+              <span className="text-[11px] text-muted-foreground">Over last {adaptiveTdee.deltaDays} days</span>
+            </div>
+          </div>
+        </Panel>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Category balance" description="Average success rate by habit category">

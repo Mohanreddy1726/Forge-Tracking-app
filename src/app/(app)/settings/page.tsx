@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, LogOut } from "lucide-react";
+import { AlertTriangle, Download, LogOut, Upload } from "lucide-react";
 import { PageHeader, Panel } from "@/components/panel";
 import { useProfile, useUpdateProfile } from "@/lib/data";
 import { downloadCsv } from "@/lib/export";
@@ -82,6 +82,62 @@ export default function SettingsPage() {
       toast.error(e instanceof Error ? e.message : "Delete failed");
     } finally {
       setBusy(null);
+    }
+  }
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function downloadJsonBackup() {
+    try {
+      setBusy("backup" as unknown as null);
+      const res = await fetch("/api/account/backup", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch backup");
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `forge-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Complete JSON backup downloaded");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Backup failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleRestoreFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!window.confirm("Restore this backup? This will replace your current logs with the backup data.")) {
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      setBusy("restore" as unknown as null);
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const res = await fetch("/api/account/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(json),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Restore failed");
+      }
+      await qc.invalidateQueries();
+      toast.success("Backup successfully restored!");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Restore failed");
+    } finally {
+      setBusy(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -179,9 +235,33 @@ export default function SettingsPage() {
         </form>
       </Panel>
 
-      <Panel title="Data" description="Export a full copy of your daily log data.">
-        <div className="flex flex-wrap gap-2">
+      <Panel title="Data & Backups" description="Export or restore a complete snapshot of your entire transformation ledger.">
+        <div className="flex flex-wrap items-center gap-2">
           <button
+            type="button"
+            onClick={downloadJsonBackup}
+            disabled={busy !== null}
+            className="inline-flex items-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/20"
+          >
+            <Download className="size-4" /> Export full backup (JSON)
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleRestoreFile}
+            accept=".json,application/json"
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy !== null}
+            className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm hover:border-primary/50 hover:text-primary"
+          >
+            <Upload className="size-4" /> Restore from JSON
+          </button>
+          <button
+            type="button"
             onClick={() =>
               downloadCsv(
                 "iron180-all-days.csv",
@@ -200,9 +280,10 @@ export default function SettingsPage() {
             }
             className="rounded-xl border border-border px-4 py-2.5 text-sm hover:border-primary/50 hover:text-primary"
           >
-            Export all data (CSV)
+            Export CSV
           </button>
           <button
+            type="button"
             onClick={signOut}
             disabled={busy === "signout"}
             className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm text-muted-foreground hover:border-destructive/50 hover:text-destructive disabled:opacity-60"

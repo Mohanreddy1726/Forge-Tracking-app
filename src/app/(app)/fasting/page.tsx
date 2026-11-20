@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Flame, Play, Square, Timer, Trash2 } from "lucide-react";
+import { Bell, Flame, Play, Square, Timer, Trash2 } from "lucide-react";
 import { EmptyState, PageHeader, Panel } from "@/components/panel";
 import { StatCard } from "@/components/stat-card";
 import { RingProgress } from "@/components/ring-progress";
@@ -63,8 +63,13 @@ export default function FastingPage() {
     ? { ...activeRaw, started_at: activeRaw.started_at as string }
     : undefined;
 
+  const notifiedRef = useRef(false);
+
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      notifiedRef.current = false;
+      return;
+    }
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [active]);
@@ -78,6 +83,32 @@ export default function FastingPage() {
   const targetMs = active ? Number(active.target_hours) * 3600000 : 0;
   const pct =
     targetMs > 0 ? Math.min(100, Math.round((elapsedMs / targetMs) * 100)) : 0;
+
+  useEffect(() => {
+    if (!active || targetMs <= 0) return;
+    if (elapsedMs >= targetMs && !notifiedRef.current) {
+      notifiedRef.current = true;
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        new Notification("Forge — Fast Complete! 🔥", {
+          body: `You hit your ${active.target_hours}h target! Time to break your fast cleanly.`,
+          icon: "/icon.png",
+        });
+      }
+    }
+  }, [active, elapsedMs, targetMs]);
+
+  async function requestNotification() {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error("Browser notifications are not supported on this device");
+      return;
+    }
+    const res = await Notification.requestPermission();
+    if (res === "granted") {
+      toast.success("Fasting notifications enabled!");
+    } else {
+      toast.error("Notifications were disabled in browser settings");
+    }
+  }
 
   const completed = useMemo(
     () =>
@@ -146,6 +177,15 @@ export default function FastingPage() {
       <PageHeader
         title="Fasting"
         description="Intermittent, full-day or custom — the timer keeps you honest."
+        action={
+          <button
+            type="button"
+            onClick={requestNotification}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium hover:border-primary/50 hover:text-primary"
+          >
+            <Bell className="size-3.5" /> Enable notifications
+          </button>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

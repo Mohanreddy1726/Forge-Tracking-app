@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -14,14 +14,21 @@ import { toast } from "sonner";
 import {
   CheckCircle2,
   Dumbbell,
+  Flame,
+  Pause,
   Pencil,
+  Play,
   Plus,
+  RotateCcw,
   Search,
+  Timer,
   Trash2,
+  Trophy,
   X,
 } from "lucide-react";
 import { EmptyState, PageHeader, Panel } from "@/components/panel";
 import { StatCard } from "@/components/stat-card";
+import { hapticSuccess, hapticTap } from "@/lib/haptic";
 import {
   Select,
   SelectContent,
@@ -69,6 +76,36 @@ type WorkoutRow = {
 const EMPTY_SET: SetRow = { weight: "", reps: "10" };
 const NOT_LISTED = "__not_listed__";
 
+function playChime() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.6);
+  } catch {
+    // Ignore audio context errors
+  }
+}
+
+function calculate1RM(weight: number, reps: number): number {
+  if (!weight || !reps) return 0;
+  if (reps === 1) return weight;
+  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+}
+
 export default function WorkoutsPage() {
   const { data: rowsRaw = [] } = useWorkoutLogs();
   const rows = (rowsRaw ?? []) as unknown as WorkoutRow[];
@@ -76,6 +113,34 @@ export default function WorkoutsPage() {
   const del = useDeleteRow("workout_logs");
   const updateRow = useUpdateRow("workout_logs");
   const [date, setDate] = useState(todayStr());
+
+  // Rest Timer state
+  const [restRemaining, setRestRemaining] = useState<number | null>(null);
+  const [restTotal, setRestTotal] = useState(60);
+  const [restRunning, setRestRunning] = useState(false);
+
+  useEffect(() => {
+    if (!restRunning || restRemaining === null) return;
+    if (restRemaining <= 0) {
+      setRestRunning(false);
+      setRestRemaining(null);
+      hapticSuccess();
+      playChime();
+      toast.success("Rest complete! Ready for next set.");
+      return;
+    }
+    const timer = setTimeout(() => {
+      setRestRemaining((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [restRunning, restRemaining]);
+
+  function startRest(seconds: number) {
+    hapticTap(15);
+    setRestTotal(seconds);
+    setRestRemaining(seconds);
+    setRestRunning(true);
+  }
 
   // Cascade: workout-name (muscle group) → exercise (filtered list).
   const [muscleGroup, setMuscleGroup] = useState<string>("");
@@ -108,6 +173,22 @@ export default function WorkoutsPage() {
     [rows],
   );
   const activeExercise = selected || exercises[0] || "";
+
+  // Progressive Overload Ghosting: lookup previous session for the active form exercise
+  const lastSession = useMemo(() => {
+    if (!exercise.trim()) return null;
+    const forEx = rows
+      .filter((r) => r.exercise.toLowerCase() === exercise.trim().toLowerCase())
+      .sort((a, b) => b.log_date.localeCompare(a.log_date));
+    return forEx[0] ?? null;
+  }, [rows, exercise]);
+
+  // All-time best estimated 1RM for the active exercise
+  const allTimeBest1RM = useMemo(() => {
+    if (!exercise.trim()) return 0;
+    const forEx = rows.filter((r) => r.exercise.toLowerCase() === exercise.trim().toLowerCase());
+    return forEx.reduce((max, r) => Math.max(max, calculate1RM(Number(r.weight), r.reps)), 0);
+  }, [rows, exercise]);
 
   const progression = useMemo(
     () =>
@@ -321,28 +402,99 @@ export default function WorkoutsPage() {
             <Input label="Notes" value={notes} onChange={setNotes} placeholder="Optional" />
           </div>
 
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Sets</p>
-            {setRows.map((s, i) => (
-              <div key={i} className="flex items-end gap-2 rounded-xl border border-border bg-muted/20 p-2">
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/12 text-xs font-semibold text-primary">
-                  {i + 1}
+          {/* Progressive Overload Ghost Banner */}
+          {lastSession && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-xs">
+              <span className="flex items-center gap-1.5 font-semibold text-primary">
+                <Trophy className="size-4" /> Previous Session ({lastSession.log_date}):
+              </span>
+              <span className="font-medium text-foreground">
+                {lastSession.weight} kg × {lastSession.reps} reps (Vol: {Number(lastSession.weight) * lastSession.sets * lastSession.reps} kg)
+              </span>
+            </div>
+          )}
+
+          {/* In-App Rest Timer */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3">
+            <div className="flex items-center gap-2">
+              <Timer className="size-4 text-primary" />
+              <span className="text-xs font-semibold">Rest Timer</span>
+              {restRemaining !== null && (
+                <span className="ml-1 rounded-md bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">
+                  {restRemaining}s left
                 </span>
-                <div className="grid flex-1 gap-2 sm:grid-cols-2">
-                  <Input label="Weight (kg)" type="number" value={s.weight} onChange={(v) => updateSet(i, { weight: v })} />
-                  <Input label="Reps" type="number" value={s.reps} onChange={(v) => updateSet(i, { reps: v })} />
-                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              {[30, 60, 90, 120].map((sec) => (
+                <button
+                  key={sec}
+                  type="button"
+                  onClick={() => startRest(sec)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                    restRemaining !== null && restTotal === sec
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-card hover:border-primary/50"
+                  }`}
+                >
+                  {sec}s
+                </button>
+              ))}
+              {restRemaining !== null && (
                 <button
                   type="button"
-                  onClick={() => removeSet(i)}
-                  disabled={setRows.length === 1}
-                  className="mb-2.5 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-30"
-                  aria-label={`Remove set ${i + 1}`}
+                  onClick={() => {
+                    setRestRunning(false);
+                    setRestRemaining(null);
+                  }}
+                  className="rounded-lg border border-border bg-card p-1 text-muted-foreground hover:text-destructive"
+                  title="Reset timer"
                 >
-                  <Trash2 className="size-4" />
+                  <RotateCcw className="size-3.5" />
                 </button>
-              </div>
-            ))}
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Sets</p>
+            {setRows.map((s, i) => {
+              const est1RM = calculate1RM(Number(s.weight), Number(s.reps));
+              const isPR = allTimeBest1RM > 0 && est1RM > allTimeBest1RM;
+
+              return (
+                <div key={i} className="flex flex-col gap-1 rounded-xl border border-border bg-muted/20 p-2">
+                  <div className="flex items-end gap-2">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/12 text-xs font-semibold text-primary">
+                      {i + 1}
+                    </span>
+                    <div className="grid flex-1 gap-2 sm:grid-cols-2">
+                      <Input label="Weight (kg)" type="number" value={s.weight} onChange={(v) => updateSet(i, { weight: v })} />
+                      <Input label="Reps" type="number" value={s.reps} onChange={(v) => updateSet(i, { reps: v })} />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeSet(i)}
+                      disabled={setRows.length === 1}
+                      className="mb-2.5 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-30"
+                      aria-label={`Remove set ${i + 1}`}
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                  {est1RM > 0 && (
+                    <div className="flex items-center gap-2 px-1 text-[11px] text-muted-foreground">
+                      <span>Est. 1RM: <strong className="text-foreground">{est1RM} kg</strong></span>
+                      {isPR && (
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">
+                          <Flame className="size-3 fill-primary" /> NEW PR!
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             <button
               type="button"
               onClick={addSet}
