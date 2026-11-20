@@ -75,7 +75,7 @@ export default function Landing() {
           className="animate-rise mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg"
           style={{ animationDelay: "120ms" }}
         >
-          A single-user command center for whatever challenge you're running. Weight, habits,
+          A single-user command center for whatever challenge you&apos;re running. Weight, habits,
           nutrition, workouts, mood and photos — all scored, charted and streaked.
         </p>
 
@@ -142,7 +142,7 @@ export default function Landing() {
         {/* ledger */}
         <div className="mt-24 text-left">
           <span className="inline-block rounded-sm border border-border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            What's tracked
+            What&apos;s tracked
           </span>
           <div className="glass mt-6 rounded-2xl">
             {LEDGER.map(({ icon: Icon, title, text, tag }, i) => (

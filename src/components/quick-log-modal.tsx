@@ -122,7 +122,7 @@ export function QuickLogModal() {
             {/* Quick Weight */}
             <div className="space-y-2">
               <span className="flex items-center gap-1 text-xs font-medium text-foreground">
-                <Scale className="size-3.5 text-primary" /> Log today's weight
+                <Scale className="size-3.5 text-primary" /> Log today&apos;s weight
               </span>
               <form onSubmit={saveWeight} className="flex gap-2">
                 <input
