@@ -45,7 +45,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { post } from "@/lib/api";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { QuickLogModal } from "@/components/quick-log-modal";
 import { hapticTap } from "@/lib/haptic";
 
@@ -98,7 +97,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
-        <SidebarHeader className="pb-6 flex items-center justify-between">
+        <SidebarHeader className="pb-6">
           <Link
             href="/dashboard"
             className="flex items-center justify-center gap-2.5 px-2 py-2 group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0"
@@ -116,7 +115,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </span>
             </div>
           </Link>
-          <ThemeToggle />
         </SidebarHeader>
 
         <SidebarContent>

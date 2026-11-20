@@ -45,7 +45,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={`${outfit.variable} ${jetbrains.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`dark ${outfit.variable} ${jetbrains.variable}`}>
       <body className="bg-background font-sans text-foreground antialiased">
         <Providers>{children}</Providers>
       </body>
